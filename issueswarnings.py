@@ -102,12 +102,17 @@ def create_issues(project: dict) -> dict:
     df_chk = strategy[["Test Case", "Researcher", "Facility", "Test Equipment"]].drop_duplicates()
     for _, r in df_chk.iterrows():
         tc, res, fac, eq = r["Test Case"], r["Researcher"], r["Facility"], r["Test Equipment"]
-        if not res.split("_")[0] in fac:
+
+        eq_loc = eq.split("_")[0]
+        fac_loc = fac.split("_")[0]
+        res_loc = res.split("_")[0]
+
+        if fac_loc not in res_loc and res_loc != fac_loc and res_loc not in fac_loc:
             issues["test_strategy"].append(
                 {"type": "error",
                  "message": f"Researcher {res} for Test Case {tc} is not available at Facility {fac}"}
             )
-        if not eq.split("_")[0] in fac:
+        if fac_loc not in eq_loc and eq_loc not in fac_loc:
             issues["test_strategy"].append(
                 {"type": "error",
                  "message": f"Equipment {eq} for Test Case {tc} is not available at Facility {fac}"}
@@ -115,5 +120,10 @@ def create_issues(project: dict) -> dict:
 
     # ---------- No temperature checks kept for requirements / results -------
     # You can add other requirement‑level rules here later if needed.
+
+    issues["test_strategy"] = pd.DataFrame(issues["test_strategy"]).drop_duplicates().to_dict('records')
+    issues["requirements"] = pd.DataFrame(issues["requirements"]).drop_duplicates().to_dict('records')
+    issues["test_results"] = pd.DataFrame(issues["test_results"]).drop_duplicates().to_dict('records')
+    
 
     return issues

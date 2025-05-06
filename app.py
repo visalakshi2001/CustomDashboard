@@ -7,6 +7,8 @@ import architecture
 import requirements
 import testfacility
 import teststrategy
+import testresults
+import issueswarnings
 
 
 st.set_page_config(page_title="SIE 523 Dashboards", page_icon="🛰️", layout="wide")
@@ -63,6 +65,12 @@ def show_tab(tab_name, project):
         return
     if tab_name == "Test Strategy":
         teststrategy.render(project)
+        return
+    if tab_name == "Test Results":
+        testresults.render(project)
+        return
+    if tab_name == "Warnings/Issues":
+        issueswarnings.render(project)
         return
 
 

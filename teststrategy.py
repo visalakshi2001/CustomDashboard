@@ -7,6 +7,7 @@ import graphviz
 import plotly.express as px
 from datetime import datetime
 from projectdetail import DATA_TIES     # just to reuse the standard message text
+from issueswarnings import issuesinfo
 
 STANDARD_MSG = "{}.json data is not available – upload it via **Edit Data**"
 
@@ -60,10 +61,18 @@ def render(project: dict) -> None:
 
     total_duration = test_case_durations.sum() + loc_change * 6
 
-    colm = st.columns(3)
-    colm[0].metric("Total Test Duration", f"{int(total_duration)} days")
-    colm[1].metric("Total Test Cases", strategy["Test Case"].nunique())
-    colm[2].metric("Total Facilities",  strategy["Facility"].nunique())
+    cols = st.columns([0.4, 0.7])
+
+    with cols[0]:
+        colm = st.columns(3)
+        colm[0].metric("Total Test Duration", f"{int(total_duration)} days")
+        colm[1].metric("Total Test Cases", strategy["Test Case"].nunique())
+        colm[2].metric(label="Total Tests", value=strategy["Test"].nunique(), delta_color="inverse")
+        colm[0].metric("Total Facilities",  strategy["Facility"].nunique())
+        colm[1].metric(label="Total Test Equipment", value=strategy["Test Equipment"].nunique(), delta_color="inverse")
+        colm[2].metric(label="Total Test Procedures", value=strategy["Test Procedure"].nunique(), delta_color="inverse")
+    with cols[1]:
+        issuesinfo(project, "test_strategy")
 
     st.divider()
 

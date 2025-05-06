@@ -3,7 +3,7 @@ import re
 import pandas as pd
 import streamlit as st
 from projectdetail import DATA_TIES       # reuse the same mapping
-
+from issueswarnings import issuesinfo
 
 def render(project: dict) -> None:
     """
@@ -38,5 +38,4 @@ def render(project: dict) -> None:
         st.dataframe(req_df, hide_index=True, use_container_width=True)
     
     with cols[1]:
-        st.markdown("<h4>Warnings/Issues</h4>", True)
-        pass
+        issuesinfo(project, "requirements")
