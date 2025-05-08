@@ -12,15 +12,15 @@ VIEW_OPTIONS = [
     "Test Facilities",
     "Warnings/Issues",
 ]
-
 REPORTS_ROOT = "reports"                           #  ./reports/…
 DATA_TIES = {
-    "Home Page": ["TripleCount"],
-    "Test Facilities": ["TestFacilities"],
+    "Home": ["TripleCount"],
+    "Test Facilities": ["TestFacilities", "TestEquipment", "TestPersonnel"],
     "Requirements": ["Requirements"],
     "Architecture": ["SystemArchitecture", "MissionArchitecture"],
-    "Test Strategy": ["TestStrategy"],
+    "Test Strategy": ["TestStrategy", "TestEquipment", "TestFacilities"],
     "Test Results": ["TestResults"],
+    # (Warnings/Issues pulls from these same files, so no separate entry needed)
 }
 
 @st.dialog("Project Details")

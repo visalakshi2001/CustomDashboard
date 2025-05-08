@@ -4,11 +4,10 @@ import streamlit as st
 
 STANDARD_MSG = "{}.json data is not available – upload it via **Edit Data**"
 
+# ────────────────────────────────────────────────────────────────
+#  PUBLIC ENTRY POINT
+# ────────────────────────────────────────────────────────────────
 def render(project: dict) -> None:
-    """
-    Master Warnings / Issues tab.
-    Shows three sub‑sections: test‑strategy, requirements, test‑results.
-    """
     st.markdown("## Warnings / Issues")
     for section in ("test_strategy", "requirements", "test_results"):
         issuesinfo(project, section)
@@ -16,114 +15,127 @@ def render(project: dict) -> None:
 
 
 # ────────────────────────────────────────────────────────────────
-#  Display helpers
+#  DISPLAY
 # ────────────────────────────────────────────────────────────────
-def issuesinfo(project: dict, curr_tab: str) -> None:
-    """
-    Render a coloured list of issues for the chosen sub‑area.
-    """
+def issuesinfo(project: dict, section: str) -> None:
     cont = st.container(border=True)
-    issues = create_issues(project)[curr_tab]
+    issues = create_issues(project)[section]
 
-    title_map = {
-        "test_strategy":  "Test‑Strategy Checks",
-        "requirements":   "Requirements Checks",
-        "test_results":   "Test‑Results Checks",
-    }
-    cont.markdown(f"### {title_map[curr_tab]}")
+    title = {
+        "test_strategy": "Test‑Strategy Checks",
+        "requirements":  "Requirements Checks",
+        "test_results":  "Test‑Results Checks",
+    }[section]
+    cont.markdown(f"### {title}")
 
     if not issues:
-        ok_msg = {
-            "test_strategy": "All test cases are scheduled without any resource clashes",
+        ok = {
+            "test_strategy": "No scheduling or resource‑allocation problems detected",
             "requirements":  "No requirement‑level issues detected",
             "test_results":  "No test‑result issues detected",
-        }[curr_tab]
-        cont.success(ok_msg, icon="✅")
+        }[section]
+        cont.success(ok, icon="✅")
         return
 
     for iss in issues:
         if iss["type"] == "warning":
             cont.warning(iss["message"], icon="⚠️")
-        elif iss["type"] == "error":
+        else:
             cont.error(iss["message"], icon="❗")
 
 
 # ────────────────────────────────────────────────────────────────
-#  Core logic  (temperature‑related checks REMOVED)
+#  CORE LOGIC
 # ────────────────────────────────────────────────────────────────
 def create_issues(project: dict) -> dict:
-    """
-    Returns a dict with keys
-        { "test_strategy": [...], "requirements": [...], "test_results": [...] }
-    Each list holds dicts {type: "warning"/"error", message: str}
-    """
     folder = project["folder"]
     p      = lambda f: os.path.join(folder, f)
 
-    issues = {"test_strategy": [], "requirements": [], "test_results": []}
-
-    # ---------- Strategy & Facility data ------------------------------------
+    # Attempt to load all needed CSVs; if any missing we skip those checks.
     try:
-        strategy  = pd.read_csv(p("TestStrategy.csv"))
-        facilities = pd.read_csv(p("TestFacilities.csv"))
+        strategy_df  = pd.read_csv(p("TestStrategy.csv"))
     except FileNotFoundError:
-        return issues  # if one is missing we can't compute anything
+        return {"test_strategy": [], "requirements": [], "test_results": []}
 
-    # normalise cols
-    strategy.columns = (
-        strategy.columns.str.replace(r"\s{2,}", " ", regex=True)
-                         .str.replace(r"(?<!^)(?=[A-Z])", " ", regex=True)
-                         .str.strip()
-                         .str.replace("Org$", "Organization", regex=True)
+    # Normalise column names
+    strategy_df.columns = (
+        strategy_df.columns.str.replace(r"\s{2,}", " ", regex=True)
+                           .str.replace(r"(?<!^)(?=[A-Z])", " ", regex=True)
+                           .str.strip()
+                           .str.replace("Org$", "Organization", regex=True)
     )
 
-    # ---> A) duration > 60d
-    strategy["Duration Value"] = pd.to_numeric(strategy["Duration Value"], errors="coerce")
-    days = strategy.groupby("Test Case")["Duration Value"].max().sum()
+    # ------------------------------------------------------------------ #
+    # 1)  TEST‑STRATEGY‑LEVEL ISSUES
+    # ------------------------------------------------------------------ #
+    ts_issues = []
 
-    # count facility changes
-    link = strategy[["Test Case", "Occurs Before"]].dropna()
+    # ---- A. total duration > 60 days ---------------------------------
+    strategy_df["Duration Value"] = pd.to_numeric(strategy_df["Duration Value"], errors="coerce")
+    dur_sum = strategy_df.groupby("Test Case")["Duration Value"].max().sum()
+
+    # add 6 days per facility change
+    link = strategy_df[["Test Case", "Occurs Before"]].dropna()
     parent = dict(zip(link["Test Case"], link["Occurs Before"]))
     head = (set(parent.keys()) - set(parent.values())).pop()
     ordered = []
     while head:
         ordered.append(head)
         head = parent.get(head)
+    fac_seq = strategy_df.set_index("Test Case").loc[ordered, "Facility"].tolist()
+    dur_sum += sum(a != b for a, b in zip(fac_seq[:-1], fac_seq[1:])) * 6
 
-    fac_seq = strategy.set_index("Test Case").loc[ordered, "Facility"].tolist()
-    days += sum(a != b for a, b in zip(fac_seq[:-1], fac_seq[1:])) * 6
-
-    if days > 60:
-        issues["test_strategy"].append(
-            {"type": "warning", "message": f"Total campaign duration is {int(days)} days (> 60)"}
+    if dur_sum > 60:
+        ts_issues.append(
+            {"type": "warning", "message": f"Total campaign duration is {int(dur_sum)} days (> 60)"}
         )
 
-    # ---> B) researcher & equipment location consistency
-    df_chk = strategy[["Test Case", "Researcher", "Facility", "Test Equipment"]].drop_duplicates()
-    for _, r in df_chk.iterrows():
-        tc, res, fac, eq = r["Test Case"], r["Researcher"], r["Facility"], r["Test Equipment"]
+    # ---- B. researcher / equipment availability ----------------------
+    # Load facility resources
+    equip_map, pers_map = {}, {}
+    try:
+        eq_df = pd.read_csv(p("TestEquipment.csv"))
+        eq_df.columns = eq_df.columns.str.replace(r"(?<!^)(?=[A-Z])", " ", regex=True).str.strip()
+        equip_map = eq_df.groupby("Located At")["Equipment"].apply(set).to_dict()
+    except FileNotFoundError:
+        pass
 
-        eq_loc = eq.split("_")[0]
-        fac_loc = fac.split("_")[0]
-        res_loc = res.split("_")[0]
+    try:
+        per_df = pd.read_csv(p("TestPersonnel.csv"))
+        per_df.columns = per_df.columns.str.replace(r"(?<!^)(?=[A-Z])", " ", regex=True).str.strip()
+        pers_map = per_df.groupby("Located At")["Person"].apply(set).to_dict()
+    except FileNotFoundError:
+        pass
 
-        if fac_loc not in res_loc and res_loc != fac_loc and res_loc not in fac_loc:
-            issues["test_strategy"].append(
+    for _, row in strategy_df.iterrows():
+        tc, fac = row["Test Case"], row["Facility"]
+
+        # researcher availability
+        researcher = row.get("Researcher")
+        if pd.notna(researcher) and fac in pers_map and researcher not in pers_map[fac]:
+            ts_issues.append(
                 {"type": "error",
-                 "message": f"Researcher {res} for Test Case {tc} is not available at Facility {fac}"}
-            )
-        if fac_loc not in eq_loc and eq_loc not in fac_loc:
-            issues["test_strategy"].append(
-                {"type": "error",
-                 "message": f"Equipment {eq} for Test Case {tc} is not available at Facility {fac}"}
+                 "message": f"Researcher {researcher} for Test Case {tc} is not available at Facility {fac}"}
             )
 
-    # ---------- No temperature checks kept for requirements / results -------
-    # You can add other requirement‑level rules here later if needed.
+        # equipment availability  (column may be absent or NaN)
+        eq_val = row.get("Test Equipment")
+        if pd.notna(eq_val) and fac in equip_map:
+            # allow comma / semicolon separated lists
+            for eq in re.split(r"[;,]\s*|\s+", str(eq_val).strip()):
+                if eq and eq not in equip_map[fac]:
+                    ts_issues.append(
+                        {"type": "error",
+                         "message": f"Equipment {eq} for Test Case {tc} is not available at Facility {fac}"}
+                    )
 
-    issues["test_strategy"] = pd.DataFrame(issues["test_strategy"]).drop_duplicates().to_dict('records')
-    issues["requirements"] = pd.DataFrame(issues["requirements"]).drop_duplicates().to_dict('records')
-    issues["test_results"] = pd.DataFrame(issues["test_results"]).drop_duplicates().to_dict('records')
-    
+    ts_issues = pd.DataFrame(ts_issues).drop_duplicates().to_dict('records')
+    # issues["requirements"] = pd.DataFrame(issues["requirements"]).drop_duplicates().to_dict('records')
+    # issues["test_results"] = pd.DataFrame(issues["test_results"]).drop_duplicates().to_dict('records')
 
-    return issues
+
+    # ------------------------------------------------------------------ #
+    #  (requirements & test‑results checks removed for now)
+    # ------------------------------------------------------------------ #
+    return {"test_strategy": ts_issues, "requirements": [], "test_results": []}
+

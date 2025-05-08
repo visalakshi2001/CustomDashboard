@@ -81,10 +81,7 @@ def validate_csv(file_path, expected_columns, skip_non_null_check=False):
         return False
 
 # if __name__ == "__main__":
-#     json_to_csv(json_input_path="reports students/MissionArchitecture.json", csv_output_path="reports students/MissionArchitecture.csv")
-#     json_to_csv(json_input_path="reports students/Requirements.json", csv_output_path="reports students/Requirements.csv")
-#     json_to_csv(json_input_path="reports students/SystemArchitecture.json", csv_output_path="reports students/SystemArchitecture.csv")
-#     json_to_csv(json_input_path="reports students/TestFacilities.json", csv_output_path="reports students/TestFacilities.csv")
-#     json_to_csv(json_input_path="reports students/TestResults.json", csv_output_path="reports students/TestResults.csv")
-    # json_to_csv(json_input_path="reports copy/TestStrategy.json", csv_output_path="reports copy/TestStrategy.csv")
-#     json_to_csv(json_input_path="reports students/TripleCount.json", csv_output_path="reports students/TripleCount.csv")
+    # json_to_csv(json_input_path="reports/system_dashboard/TestEquipment.json", csv_output_path="reports/system_dashboard/TestEquipment.csv")
+    # json_to_csv(json_input_path="reports/system_dashboard/TestFacilities.json", csv_output_path="reports/system_dashboard/TestFacilities.csv")
+    # json_to_csv(json_input_path="reports/system_dashboard/TestPersonnel.json", csv_output_path="reports/system_dashboard/TestPersonnel.csv")
+    # json_to_csv(json_input_path="reports/system_dashboard/TestStrategy.json", csv_output_path="reports/system_dashboard/TestStrategy.csv")

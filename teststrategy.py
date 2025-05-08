@@ -19,6 +19,7 @@ def render(project: dict) -> None:
     folder = project["folder"]
     strat_csv = os.path.join(folder, "TestStrategy.csv")
     fac_csv   = os.path.join(folder, "TestFacilities.csv")
+    equip_csv  = os.path.join(folder, "TestEquipment.csv")   # NEW
 
     # ---------- Guard: are the files present? -------------------------------
     missing = []
@@ -26,14 +27,32 @@ def render(project: dict) -> None:
         missing.append("TestStrategy")
     if not os.path.exists(fac_csv):
         missing.append("TestFacilities")
+    if not os.path.exists(equip_csv):
+        missing.append("TestEquipment")                       # NEW
     if missing:
         st.info(", ".join(f"{m}.json" for m in missing) + " data is not available – upload it via **Edit Data**")
         return
 
-    # ---------- Load & tidy the strategy table ------------------------------
+    # ----- Load & tidy the strategy table, facilities table and equipment table  ------
     strategy = pd.read_csv(strat_csv)
     strategy.columns = (
         strategy.columns.str.replace(r"\s{2,}", " ", regex=True)        # collapse dbl‑spaces
+                         .str.replace(r"(?<!^)(?=[A-Z])", " ", regex=True)
+                         .str.strip()
+                         .str.replace("Org$", "Organization", regex=True)
+    )
+
+    facilities = pd.read_csv(fac_csv)
+    facilities.columns = (
+        facilities.columns.str.replace(r"\s{2,}", " ", regex=True)        # collapse dbl‑spaces
+                         .str.replace(r"(?<!^)(?=[A-Z])", " ", regex=True)
+                         .str.strip()
+                         .str.replace("Org$", "Organization", regex=True)
+    )
+    
+    equipments = pd.read_csv(equip_csv)
+    equipments.columns = (
+        equipments.columns.str.replace(r"\s{2,}", " ", regex=True)        # collapse dbl‑spaces
                          .str.replace(r"(?<!^)(?=[A-Z])", " ", regex=True)
                          .str.strip()
                          .str.replace("Org$", "Organization", regex=True)
@@ -68,12 +87,12 @@ def render(project: dict) -> None:
         colm[0].metric("Total Test Duration", f"{int(total_duration)} days")
         colm[1].metric("Total Test Cases", strategy["Test Case"].nunique())
         colm[2].metric(label="Total Tests", value=strategy["Test"].nunique(), delta_color="inverse")
-        colm[0].metric("Total Facilities",  strategy["Facility"].nunique())
-        colm[1].metric(label="Total Test Equipment", value=strategy["Test Equipment"].nunique(), delta_color="inverse")
-        colm[2].metric(label="Total Test Procedures", value=strategy["Test Procedure"].nunique(), delta_color="inverse")
+        colm[0].metric("Total Facilities",  facilities["Test Facility"].nunique())
+        colm[1].metric(label="Total Test Equipment", value=equipments["Equipment"].nunique(), delta_color="inverse")
+        if "Test Procedure" in strategy.columns:
+            colm[2].metric(label="Total Test Procedures", value=strategy["Test Procedure"].nunique(), delta_color="inverse")
     with cols[1]:
         issuesinfo(project, "test_strategy")
-        # pass
 
     st.divider()
 
@@ -85,14 +104,6 @@ def render(project: dict) -> None:
 
     # ---------- Table explorer ----------------------------------------------
     make_table_view(strategy)
-        # subset = strategy.drop(columns=["Test Equipment", "Occurs Before"])
-        # subset = subset.dropna(axis=1, how="all")
-        # order_cols = subset.columns
-        # subset = subset.groupby(
-        #     [c for c in subset.columns if c != "Duration Value"], as_index=False
-        # )["Duration Value"].max()
-        # st.dataframe(subset[order_cols], hide_index=True, use_container_width=True)
-
 
 # --------------------------------------------------------------------------- #
 # Helper utilities – largely lifted from your earlier code, but made dynamic #
@@ -107,7 +118,7 @@ def make_table_view(strategy):
     subsetcols = [col for col in subsetstrategy.columns if col != "Duration Value"]
     subsetstrategy = subsetstrategy.groupby(subsetcols, as_index=False)["Duration Value"].max()
     exp = st.expander("View Entire Test Strategy Table", icon="🗃️")
-    exp.dataframe(subsetstrategy[column_order], hide_index=True, use_container_width=True)
+    exp.dataframe(subsetstrategy[column_order].drop_duplicates(), hide_index=True, use_container_width=True)
 
     cols = st.columns([0.1,0.9])
     with cols[0]:
@@ -121,7 +132,7 @@ def make_table_view(strategy):
             selectedstrategy = strategy[strategy["Test"] == testopt]
         else:
             selectedstrategy = strategy[(strategy["Test"] == testopt) & (strategy["Test Case"] == testcaseopt)]
-        st.dataframe(selectedstrategy, hide_index=True, use_container_width=True, height=280)
+        st.dataframe(selectedstrategy.drop_duplicates(), hide_index=True, use_container_width=True, height=280)
 
 def make_graph_view(strategy: pd.DataFrame) -> None:
     st.markdown("#### Test Strategy Structure")
