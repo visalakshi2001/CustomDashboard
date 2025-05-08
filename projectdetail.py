@@ -162,14 +162,15 @@ def replace_data(project):
     # ------------- save uploads (JSON + converted CSV)
     uploaded_names = set()                       # keep track of just‑uploaded names
     for f in new_files:
-        path_json = os.path.join(folder, f.name)
+        json_out = f.name.split(".json")[0].strip().translate({ord(ch): None for ch in '0123456789'}).strip() + ".json"
+        path_json = os.path.join(folder, json_out)
         with open(path_json, "wb") as out:
             out.write(f.getbuffer())
-        csv_out = f.name.replace(".json", ".csv")
+        csv_out = f.name.split(".json")[0].strip().translate({ord(ch): None for ch in '0123456789'}).strip() + ".csv"
         json_to_csv(json_file_object=f.getvalue(),
                     csv_output_path=os.path.join(folder, csv_out))
-        st.success(f"Saved {f.name} converted and saved")
-        uploaded_names.add(f.name)
+        st.success(f"Saved {json_out} converted and saved")
+        uploaded_names.add(json_out)
     
     # ------------------- MISSING / COMPLETE STATUS ---------------------------
     # What will remain after this dialog *if* the user clicks "Save Changes"

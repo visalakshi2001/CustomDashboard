@@ -72,7 +72,8 @@ def render(project: dict) -> None:
         colm[1].metric(label="Total Test Equipment", value=strategy["Test Equipment"].nunique(), delta_color="inverse")
         colm[2].metric(label="Total Test Procedures", value=strategy["Test Procedure"].nunique(), delta_color="inverse")
     with cols[1]:
-        issuesinfo(project, "test_strategy")
+        # issuesinfo(project, "test_strategy")
+        pass
 
     st.divider()
 
@@ -83,19 +84,44 @@ def render(project: dict) -> None:
     make_sequence_view(strategy, order, test_case_durations, total_duration)
 
     # ---------- Table explorer ----------------------------------------------
-    with st.expander("Tabular Explorer", expanded=False):
-        subset = strategy.drop(columns=["Test Equipment", "Occurs Before"])
-        subset = subset.dropna(axis=1, how="all")
-        order_cols = subset.columns
-        subset = subset.groupby(
-            [c for c in subset.columns if c != "Duration Value"], as_index=False
-        )["Duration Value"].max()
-        st.dataframe(subset[order_cols], hide_index=True, use_container_width=True)
+    make_table_view(strategy)
+        # subset = strategy.drop(columns=["Test Equipment", "Occurs Before"])
+        # subset = subset.dropna(axis=1, how="all")
+        # order_cols = subset.columns
+        # subset = subset.groupby(
+        #     [c for c in subset.columns if c != "Duration Value"], as_index=False
+        # )["Duration Value"].max()
+        # st.dataframe(subset[order_cols], hide_index=True, use_container_width=True)
 
 
 # --------------------------------------------------------------------------- #
 # Helper utilities – largely lifted from your earlier code, but made dynamic #
 # --------------------------------------------------------------------------- #
+
+def make_table_view(strategy):
+    st.markdown("#### Test Strategy Explorer", True)
+    subsetstrategy = strategy.drop(columns=["Test Equipment", "Occurs Before"])
+    subsetstrategy = subsetstrategy.dropna(axis=1, how="all")
+    # save column order for later displaying
+    column_order = subsetstrategy.columns
+    subsetcols = [col for col in subsetstrategy.columns if col != "Duration Value"]
+    subsetstrategy = subsetstrategy.groupby(subsetcols, as_index=False)["Duration Value"].max()
+    exp = st.expander("View Entire Test Strategy Table", icon="🗃️")
+    exp.dataframe(subsetstrategy[column_order], hide_index=True, use_container_width=True)
+
+    cols = st.columns([0.1,0.9])
+    with cols[0]:
+        testopt = st.radio("Select Test", options=np.unique(strategy["Test"]), index=0)
+
+        caseopts = strategy[strategy["Test"] == testopt]["Test Case"].value_counts().index.tolist() + ["All"]
+        testcaseopt = st.radio("Select Test Case", options=caseopts, index=0)
+
+    with cols[1]:
+        if testcaseopt == "All":
+            selectedstrategy = strategy[strategy["Test"] == testopt]
+        else:
+            selectedstrategy = strategy[(strategy["Test"] == testopt) & (strategy["Test Case"] == testcaseopt)]
+        st.dataframe(selectedstrategy, hide_index=True, use_container_width=True, height=280)
 
 def make_graph_view(strategy: pd.DataFrame) -> None:
     st.markdown("#### Test Strategy Structure")
