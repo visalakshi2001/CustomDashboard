@@ -14,7 +14,7 @@ VIEW_OPTIONS = [
 ]
 REPORTS_ROOT = "reports"                           #  ./reports/…
 DATA_TIES = {
-    "Home": ["TripleCount"],
+    "Home Page": ["TripleCount"],
     "Test Facilities": ["TestFacilities", "TestEquipment", "TestPersonnel"],
     "Requirements": ["Requirements"],
     "Architecture": ["SystemArchitecture", "MissionArchitecture"],
