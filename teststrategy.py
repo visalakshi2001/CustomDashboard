@@ -72,8 +72,8 @@ def render(project: dict) -> None:
         colm[1].metric(label="Total Test Equipment", value=strategy["Test Equipment"].nunique(), delta_color="inverse")
         colm[2].metric(label="Total Test Procedures", value=strategy["Test Procedure"].nunique(), delta_color="inverse")
     with cols[1]:
-        # issuesinfo(project, "test_strategy")
-        pass
+        issuesinfo(project, "test_strategy")
+        # pass
 
     st.divider()
 
